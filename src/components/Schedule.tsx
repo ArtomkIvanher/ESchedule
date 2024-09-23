@@ -1,5 +1,7 @@
+// Schedule.tsx
 import React, { useEffect, useState } from 'react';
-import { fetchSchedule } from '../services/scheduleService';
+import axios from 'axios';
+import AddSubject from './AddSubject/AddSubject';
 
 interface Subject {
     id: number;
@@ -8,22 +10,26 @@ interface Subject {
 }
 
 const Schedule: React.FC = () => {
-    const [schedule, setSchedule] = useState<Subject[]>([]);
+    const [subjects, setSubjects] = useState<Subject[]>([]);
 
     useEffect(() => {
-        const getSchedule = async () => {
-            const data = await fetchSchedule();
-            setSchedule(data);
+        const fetchSubjects = async () => {
+            const response = await axios.get('http://localhost:5000/api/schedule');
+            setSubjects(response.data);
         };
-        getSchedule();
+        fetchSubjects();
     }, []);
+
+    const addSubject = (newSubject: Subject) => {
+        setSubjects((prev) => [...prev, newSubject]);
+    };
 
     return (
         <div>
-            <h1>Розклад</h1>
+            <AddSubject onAddSubject={addSubject} />
             <ul>
-                {schedule.map(item => (
-                    <li key={item.id}>{item.subject} - {item.time}</li>
+                {subjects.map((subject) => (
+                    <li key={subject.id}>{subject.subject} at {subject.time}</li>
                 ))}
             </ul>
         </div>
