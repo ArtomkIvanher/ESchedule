@@ -1,14 +1,47 @@
 const express = require('express');
 const cors = require('cors');
+const bcrypt = require('bcrypt'); // Для хешування паролів
 const app = express();
 const PORT = 5000;
 
 app.use(cors()); // Дозволяє всі запити з інших джерел
 app.use(express.json());
 
+let users = []; // Масив для зберігання користувачів
+let subjects = [{ id: 1, subject: 'Math', time: '10:00 AM' }]; // Ініціалізація масиву предметів
+
+// Маршрут для реєстрації користувача
+app.post('/api/register', async (req, res) => {
+    const { email, password } = req.body;
+
+    // Перевірка, чи користувач вже існує
+    const existingUser = users.find(user => user.email === email);
+    if (existingUser) {
+        return res.status(400).json({ message: 'User already exists' });
+    }
+
+    // Хешування пароля
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = { email, password: hashedPassword };
+    users.push(newUser); // Додати нового користувача в масив
+    res.status(201).json({ message: 'User registered successfully' });
+});
+
 // Простий маршрут для отримання розкладу
 app.get('/api/schedule', (req, res) => {
-    res.json([{ id: 1, subject: 'Math', time: '10:00 AM' }]);
+    res.json(subjects);
+});
+
+// Маршрут для додавання нового предмета
+app.post('/api/schedule', (req, res) => {
+    const { subject, time } = req.body;
+    const newSubject = {
+        id: subjects.length + 1, // Простий спосіб генерувати ID
+        subject,
+        time,
+    };
+    subjects.push(newSubject);
+    res.status(201).json(newSubject);
 });
 
 // Головний маршрут
@@ -23,27 +56,25 @@ app.listen(PORT, () => {
 
 
 
-let subjects = [{ id: 1, subject: 'Math', time: '10:00 AM' }]; // Ініціалізація масиву предметів
+const jwt = require('jsonwebtoken'); // Для генерації токенів
+const SECRET_KEY = 'your_secret_key'; // Заміни на свій секретний ключ
 
-app.get('/api/schedule', (req, res) => {
-    res.json(subjects);
-});
+// Маршрут для входу користувача
+app.post('/api/login', async (req, res) => {
+    const { email, password } = req.body;
+    const user = users.find(user => user.email === email);
 
-// Додати новий маршрут
-app.post('/api/schedule', (req, res) => {
-    const { subject, time } = req.body;
-    const newSubject = {
-        id: subjects.length + 1, // Простий спосіб генерувати ID
-        subject,
-        time,
-    };
-    subjects.push(newSubject);
-    res.status(201).json(newSubject);
-});
+    if (!user) {
+        return res.status(400).json({ message: 'User not found' });
+    }
 
-app.post('/api/schedule', (req, res) => {
-    const newSubject = req.body;
-    // Логіка для додавання нового предмета, наприклад, збереження в масив
-    console.log('New subject added:', newSubject);
-    res.status(201).json(newSubject); // Відправка відповіді з новим предметом
+    // Перевірка пароля
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+        return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    // Генерація токена
+    const token = jwt.sign({ email: user.email }, SECRET_KEY, { expiresIn: '1h' });
+    res.json({ token });
 });

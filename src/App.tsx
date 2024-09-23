@@ -1,17 +1,15 @@
 // App.tsx
 import React from 'react';
 import Schedule from './components/Schedule';
-import AddSubject from './components/AddSubject/AddSubject';
+import Registration from './components/User/Registration/Registration';
+import Login from './components/User/Login/Login';
 
 const App: React.FC = () => {
-    const handleAddSubject = (newSubject: { id: number; subject: string; time: string }) => {
-        // Логіка для обробки нових предметів, якщо потрібно
-    };
-
     return (
         <div>
             <h1>Schedule App</h1>
-            
+            <Registration />
+            <Login />
             <Schedule />
         </div>
     );

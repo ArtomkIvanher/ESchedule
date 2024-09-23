@@ -24,6 +24,17 @@ const Schedule: React.FC = () => {
         setSubjects((prev) => [...prev, newSubject]);
     };
 
+    const fetchSubjects = async () => {
+        const token = localStorage.getItem('token');
+        const response = await axios.get('http://localhost:5000/api/schedule', {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
+        setSubjects(response.data);
+    };
+    
+
     return (
         <div>
             <AddSubject onAddSubject={addSubject} />

@@ -36,7 +36,7 @@ const AddSubject: React.FC<AddSubjectProps> = ({ onAddSubject }) => {
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
                 placeholder="Time"
-                required
+                required 
             />
             <button type="submit">Add Subject</button>
         </form>
