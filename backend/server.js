@@ -1,68 +1,92 @@
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcrypt'); // Для хешування паролів
+const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken'); // Для генерації токенів
+
 const app = express();
 const PORT = 5000;
+const SECRET_KEY = 'your_secret_key'; // Заміни на свій секретний ключ
+
+// Підключення до MongoDB
+mongoose.connect('mongodb://localhost:27017/scheduleApp', {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+}).then(() => {
+    console.log('Connected to MongoDB');
+}).catch(err => {
+    console.error('Failed to connect to MongoDB', err);
+});
 
 app.use(cors()); // Дозволяє всі запити з інших джерел
 app.use(express.json());
 
-let users = []; // Масив для зберігання користувачів
-let subjects = [{ id: 1, subject: 'Math', time: '10:00 AM' }]; // Ініціалізація масиву предметів
+// Схема для користувачів
+const userSchema = new mongoose.Schema({
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+});
+
+const User = mongoose.model('User', userSchema); // Модель користувача
+
+// Схема для предметів
+const subjectSchema = new mongoose.Schema({
+    subject: { type: String, required: true },
+    time: { type: String, required: true },
+});
+
+const Subject = mongoose.model('Subject', subjectSchema); // Модель предмета
 
 // Маршрут для реєстрації користувача
 app.post('/api/register', async (req, res) => {
-    const { email, password } = req.body;
+    try {
+        const { email, password } = req.body;
 
-    // Перевірка, чи користувач вже існує
-    const existingUser = users.find(user => user.email === email);
-    if (existingUser) {
-        return res.status(400).json({ message: 'User already exists' });
+        // Перевірка, чи користувач вже існує
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({ message: 'User already exists' });
+        }
+
+        // Хешування пароля
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = new User({ email, password: hashedPassword });
+        await newUser.save(); // Зберегти нового користувача в базі даних
+        res.status(201).json({ message: 'User registered successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal Server Error' });
     }
-
-    // Хешування пароля
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = { email, password: hashedPassword };
-    users.push(newUser); // Додати нового користувача в масив
-    res.status(201).json({ message: 'User registered successfully' });
 });
 
 // Простий маршрут для отримання розкладу
-app.get('/api/schedule', (req, res) => {
-    res.json(subjects);
+app.get('/api/schedule', async (req, res) => {
+    try {
+        const subjects = await Subject.find(); // Отримати всі предмети з бази даних
+        res.json(subjects);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
 });
 
 // Маршрут для додавання нового предмета
-app.post('/api/schedule', (req, res) => {
-    const { subject, time } = req.body;
-    const newSubject = {
-        id: subjects.length + 1, // Простий спосіб генерувати ID
-        subject,
-        time,
-    };
-    subjects.push(newSubject);
-    res.status(201).json(newSubject);
+app.post('/api/schedule', async (req, res) => {
+    try {
+        const { subject, time } = req.body;
+        const newSubject = new Subject({ subject, time });
+        await newSubject.save(); // Зберегти новий предмет в базі даних
+        res.status(201).json(newSubject);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
 });
-
-// Головний маршрут
-app.get('/', (req, res) => {
-    res.send('API is running');
-});
-
-// Запуск сервера
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-});
-
-
-
-const jwt = require('jsonwebtoken'); // Для генерації токенів
-const SECRET_KEY = 'your_secret_key'; // Заміни на свій секретний ключ
 
 // Маршрут для входу користувача
 app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
-    const user = users.find(user => user.email === email);
+    const user = await User.findOne({ email });
 
     if (!user) {
         return res.status(400).json({ message: 'User not found' });
@@ -77,4 +101,14 @@ app.post('/api/login', async (req, res) => {
     // Генерація токена
     const token = jwt.sign({ email: user.email }, SECRET_KEY, { expiresIn: '1h' });
     res.json({ token });
+});
+
+// Головний маршрут
+app.get('/', (req, res) => {
+    res.send('API is running');
+});
+
+// Запуск сервера
+app.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
 });
